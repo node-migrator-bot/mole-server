@@ -1,0 +1,36 @@
+{
+  "author": "Jakob Borg <jakob@nym.se> (http://nym.se/)",
+  "name": "mole-server",
+  "description": "Server side components for Mole",
+  "version": "1.0.0",
+  "homepage": "https://github.com/calmh/mole-server",
+  "repository": {
+    "url": "http://github.com/calmh/mole-server.git"
+  },
+  "scripts": {
+    "install": "[ -f ca-cert.pem ] || ( ./gen-ca.exp ; mkdir -p crt ; ./gen-user.exp . server )",
+    "test": "./node_modules/.bin/mocha -R spec",
+    "start": "node server.js"
+  },
+  "bin": {
+    "mole-server": "./server.js"
+  },
+  "dependencies": {
+    "async": "~0.1.22",
+    "express": "~2.5.9",
+    "node-uuid": "~1.3.3",
+    "underscore": "~1.3.3",
+    "nconf": "~0.5.1",
+    "commander": "~0.6.1",
+    "winston": "~0.6.1",
+    "mkdirp": "~0.3.3"
+  },
+  "devDependencies": {
+    "mocha": "~1.1.0",
+    "should": "~0.6.3"
+  },
+  "optionalDependencies": {},
+  "engines": {
+    "node": "0.6.x"
+  }
+}
