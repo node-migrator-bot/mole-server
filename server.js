@@ -114,6 +114,7 @@ app.get('/register/:token', function(req, res){
             res.send(JSON.stringify({ cert: cert, key: key }));
             delete ud.token;
             ud.registered = Date.now();
+            users.save();
         }
     });
     res.end();
@@ -124,6 +125,7 @@ app.post('/newtoken', function(req, res){
     var user = authenticate(req);
     if (user) {
         user.token = uuid.v4();
+        users.save();
         res.contentType('json');
         res.send(JSON.stringify({ token: user.token }));
     };
