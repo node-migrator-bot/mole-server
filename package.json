@@ -2,7 +2,7 @@
   "author": "Jakob Borg <jakob@nym.se> (http://nym.se/)",
   "name": "mole-server",
   "description": "Server side components for Mole",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "homepage": "https://github.com/calmh/mole-server",
   "repository": {
     "url": "http://github.com/calmh/mole-server.git"
