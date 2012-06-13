@@ -145,12 +145,11 @@ function register(req, res){
                 found = true;
                 var cert = fs.readFileSync('crt/' + name + '-cert.pem', 'utf-8');
                 var key = fs.readFileSync('crt/' + name + '-key.pem', 'utf-8');
-                var ca = fs.readFileSync(path.join(__dirname, 'ca-cert.pem'), 'utf-8');
                 delete ud.token;
                 ud.registered = Date.now();
                 users.save();
 
-                res.json({ cert: cert, key: key, ca: ca });
+                res.json({ cert: cert, key: key });
             }
         }
     });
