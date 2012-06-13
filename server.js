@@ -24,6 +24,7 @@ commander
 
 mkdirp.sync(path.join(commander.store, 'crt'));
 mkdirp.sync(path.join(commander.store, 'data'));
+mkdirp.sync(path.join(commander.store, 'server'));
 process.chdir(commander.store);
 
 // Set up logging
@@ -39,16 +40,44 @@ var userFile = path.join(commander.sore, 'users.json');
 log.debug('Using users file', userFile);
 var users = new userStore(userFile);
 
-log.debug('Create HTTP server');
-var app = express.createServer({
-    ca: [ fs.readFileSync(path.join(__dirname, 'ca-cert.pem')) ],
-    key: fs.readFileSync(path.join(__dirname, 'crt/server-key.pem')),
-    cert: fs.readFileSync(path.join(__dirname, 'crt/server-cert.pem')),
-    requestCert: true,
-});
+var caCertFile = path.join(commander.store, 'ca-cert.pem');
+var serverCertFile = path.join(commander.store, 'crt', 'server-cert.pem');
+var serverKeyFile = path.join(commander.store, 'crt', 'server-key.pem');
+
+log.debug('Checking for existing certificates');
+if (!path.existsSync(caCertFile)) {
+    spawn(path.join(__dirname, 'gen-ca.exp')).on('exit', function (code) {
+        spawn(path.join(__dirname, 'gen-user.exp'), [ 'server' ]).on('exit', function (code) {
+            log.info('Created CA & server certificates');
+            startApp();
+        });
+    });
+} else {
+    startApp();
+}
+
+function startApp() {
+    log.debug('Create HTTP server');
+    var app = express.createServer({
+        ca: [ fs.readFileSync(caCertFile) ],
+        key: fs.readFileSync(serverKeyFile),
+        cert: fs.readFileSync(serverCertFile),
+        requestCert: true,
+    });
+
+    app.get(/\/register\/([0-9a-f-]+)$/, register);
+    app.post('/newtoken', newtoken);
+    app.post(/\/users\/([a-z0-9_-]+)$/, newuser);
+    app.del(/\/users\/([a-z0-9_-]+)$/, deluser);
+    app.get('/store', listfiles);
+    app.put(/\/store\/([0-9a-z_.-]+)$/, putfile);
+    app.get(/\/store\/([0-9a-z_.-]+)$/, getfile);
+    app.listen(commander.port);
+    log.info('Server listening on port ' + commander.port);
+}
 
 function createUserCert(name, callback) {
-    var openssl = spawn(path.join(__dirname, 'gen-user.exp'), [ __dirname, name ]);
+    var openssl = spawn(path.join(__dirname, 'gen-user.exp'), [ name ]);
     var fingerprint;
 
     function recv(data) {
@@ -103,7 +132,7 @@ function createUser(name, admin, callback) {
     });
 }
 
-app.get(/\/register\/([0-9a-f-]+)$/, function(req, res){
+function register(req, res){
     var token = req.params[0];
     var found = false;
 
@@ -130,9 +159,9 @@ app.get(/\/register\/([0-9a-f-]+)$/, function(req, res){
         res.send(404);
         res.end();
     }
-});
+}
 
-app.post('/newtoken', function(req, res){
+function newtoken(req, res){
     log.debug('POST /newtoken');
     var user = authenticate(req);
     if (user) {
@@ -143,11 +172,11 @@ app.post('/newtoken', function(req, res){
         res.send(403);
         res.end();
     };
-});
+}
 
 // Create a new user (or reset certificate and token for an existing one).
 
-app.post(/\/users\/([a-z0-9_-]+)$/, function(req, res){
+function newuser(req, res){
     var username = req.params[0];
     log.debug('POST /users/' + username);
     var user = authenticate(req, users);
@@ -160,11 +189,11 @@ app.post(/\/users\/([a-z0-9_-]+)$/, function(req, res){
         res.send(403);
         res.end();
     }
-});
+}
 
 // Delete a user
 
-app.del(/\/users\/([a-z0-9_-]+)$/, function(req, res){
+function deluser(req, res){
     var username = req.params[0];
     log.debug('DELETE /users/' + username);
     var user = authenticate(req, users);
@@ -179,11 +208,11 @@ app.del(/\/users\/([a-z0-9_-]+)$/, function(req, res){
         res.send(403);
     }
     res.end();
-});
+}
 
 // List the files in storage.
 
-app.get('/store', function (req, res) {
+function listfiles(req, res) {
     log.debug('GET /store');
     function stat(fname, callback) {
         fs.stat(path.join('data', fname), function (err, res) {
@@ -206,11 +235,11 @@ app.get('/store', function (req, res) {
         res.send(403);
         res.end();
     }
-});
+}
 
 // Add a file to storage.
 
-app.put(/\/store\/([0-9a-z_.-]+)$/, function (req, res) {
+function putfile(req, res) {
     var file = req.params[0];
     log.debug('PUT /store/' + file);
     var user = authenticate(req);
@@ -229,11 +258,11 @@ app.put(/\/store\/([0-9a-z_.-]+)$/, function (req, res) {
         res.send(403);
         res.end();
     }
-});
+}
 
 // Get a file from storage.
 
-app.get(/\/store\/([0-9a-z_.-]+)$/, function (req, res) {
+function getfile(req, res) {
     var file = req.params[0];
     log.debug('GET /store/' + file);
     var user = authenticate(req);
@@ -243,10 +272,5 @@ app.get(/\/store\/([0-9a-z_.-]+)$/, function (req, res) {
         res.send(403);
         res.end();
     }
-});
-
-// Start the HTTPS server.
-
-app.listen(commander.port);
-log.debug('Server listening on port ' + commander.port);
+}
 

@@ -3,8 +3,7 @@
 log_user 0
 
 set domain "mole"
-set cadir [lindex $argv 0]
-set user [lindex $argv 1]
+set user [lindex $argv 0]
 
 spawn openssl genrsa -out crt/$user-key.pem 1024 
 expect eof
@@ -23,7 +22,7 @@ expect {
 	eof
 }
 
-spawn openssl x509 -req -in crt/$user-csr.pem -out crt/$user-cert.pem -CA $cadir/ca-cert.pem -CAkey $cadir/ca-key.pem -CAcreateserial -days 1825
+spawn openssl x509 -req -in crt/$user-csr.pem -out crt/$user-cert.pem -CA ca-cert.pem -CAkey ca-key.pem -CAcreateserial -days 1825
 expect eof
 
 spawn sh -c "cat crt/$user-cert.pem crt/$user-key.pem > crt/$user.pem"

@@ -8,7 +8,6 @@
     "url": "http://github.com/calmh/mole-server.git"
   },
   "scripts": {
-    "install": "[ -f ca-cert.pem ] || ( ./gen-ca.exp ; mkdir -p crt ; ./gen-user.exp . server )",
     "test": "./node_modules/.bin/mocha -R spec",
     "start": "node server.js"
   },

@@ -1,5 +1,7 @@
 #!/usr/bin/env expect
 
+log_user 0
+
 set domain [lindex $argv 0]
 if { $domain == "" } { set domain "mole" }
 
