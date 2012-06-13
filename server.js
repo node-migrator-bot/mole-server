@@ -92,26 +92,29 @@ function authenticate(req) {
     return user;
 }
 
-function createUser(name, callback) {
+function createUser(name, admin, callback) {
     var user = { created: Date.now(), token: uuid.v4() };
 
     createUserCert(name, function (fingerprint) {
         user.fingerprint = fingerprint;
+        user.admin = !!admin;
         users.set(name, user);
         callback(user);
     });
 }
 
-app.get('/register/:token', function(req, res){
-    log.debug('GET /register/' + req.params.token);
+app.get(/\/register\/([0-9a-f-]+)$/, function(req, res){
+    var token = req.params[0];
+    log.debug('GET /register/' + token);
     _.each(users.all(), function (user) {
         var name = user.name;
         var ud = user.data;
-        if (ud.token === req.params.token) {
+        if (ud.token === token) {
             var cert = fs.readFileSync('crt/' + name + '-cert.pem', 'utf-8');
             var key = fs.readFileSync('crt/' + name + '-key.pem', 'utf-8');
+            var ca = fs.readFileSync(path.join(__dirname, 'ca-cert.pem'), 'utf-8');
             res.contentType('json');
-            res.send(JSON.stringify({ cert: cert, key: key }));
+            res.send(JSON.stringify({ cert: cert, key: key, ca: ca }));
             delete ud.token;
             ud.registered = Date.now();
             users.save();
@@ -134,12 +137,14 @@ app.post('/newtoken', function(req, res){
 
 // Create a new user (or reset certificate and token for an existing one).
 
-app.post('/users/:username', function(req, res){
-    log.debug('POST /users/' + req.params.username);
+app.post(/\/users\/([a-z0-9_-]+)$/, function(req, res){
+    var username = req.params[0];
+    log.debug('POST /users/' + username);
     var user = authenticate(req, users);
     if (users.all().length === 0 // There are no users yet
         || user && user.admin) { // The authenticated user is an admin.
-        createUser(req.params.username, function (u) {
+        var newUserAdmin = users.all().length == 0;
+        createUser(username, newUserAdmin, function (u) {
             res.contentType('json');
             res.send(JSON.stringify(u));
             res.end();
@@ -179,8 +184,9 @@ app.get('/store', function (req, res) {
 
 // Add a file to storage.
 
-app.put('/store/:file', function (req, res) {
-    log.debug('PUT /store/' + req.params.file);
+app.put(/\/store\/([0-9a-z_.-]+)$/, function (req, res) {
+    var file = req.params[0];
+    log.debug('PUT /store/' + file);
     var user = authenticate(req);
     if (user) {
         var buffer = '';
@@ -189,7 +195,7 @@ app.put('/store/:file', function (req, res) {
             buffer += chunk;
         });
         req.on('end', function () {
-            fs.writeFile(path.join('data', req.params.file), buffer, function () {
+            fs.writeFile(path.join('data', file), buffer, function () {
                 res.contentType('json');
                 res.send(JSON.stringify({ status: 'ok', length: buffer.length }));
                 res.end();
@@ -202,11 +208,12 @@ app.put('/store/:file', function (req, res) {
 
 // Get a file from storage.
 
-app.get('/store/:file', function (req, res) {
-    log.debug('GET /store/' + req.params.file);
+app.get(/\/store\/([0-9a-z_.-]+)$/, function (req, res) {
+    var file = req.params[0];
+    log.debug('GET /store/' + file);
     var user = authenticate(req);
     if (user) {
-        res.sendfile(path.join('data', req.params.file));
+        res.sendfile(path.join('data', file));
     } else {
         res.end();
     }
