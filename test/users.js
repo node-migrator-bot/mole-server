@@ -52,4 +52,13 @@ describe('users', function () {
         u.set('test2', { a:2, b:3 });
         u.all().length.should.equal(2);
     });
+
+    it('should delete users', function () {
+        var u = new users(testFile);
+        u.set('test', { a:1, b:2 });
+        u.set('test2', { a:2, b:3 });
+        u.del('test');
+        u.all().length.should.equal(1);
+        should.not.exist(u.get('test'));
+    });
 });

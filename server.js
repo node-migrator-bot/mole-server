@@ -15,10 +15,10 @@ var mkdirp = require('mkdirp');
 // Set up configuration
 
 commander
-    .option('-p, --port <port>', 'set the listen port (9443)', 9443)
-    .option('-s, --store <store>', 'set the store directory (~/mole-store)', path.join(process.env['HOME'], 'mole-store'))
-    .option('-d, --debug', 'show debug output', false)
-    .parse(process.argv);
+.option('-p, --port <port>', 'set the listen port (9443)', 9443)
+.option('-s, --store <store>', 'set the store directory (~/mole-store)', path.join(process.env['HOME'], 'mole-store'))
+.option('-d, --debug', 'show debug output', false)
+.parse(process.argv);
 
 // Set up the storage directory and move there
 
@@ -105,22 +105,31 @@ function createUser(name, admin, callback) {
 
 app.get(/\/register\/([0-9a-f-]+)$/, function(req, res){
     var token = req.params[0];
+    var found = false;
+
     log.debug('GET /register/' + token);
     _.each(users.all(), function (user) {
-        var name = user.name;
-        var ud = user.data;
-        if (ud.token === token) {
-            var cert = fs.readFileSync('crt/' + name + '-cert.pem', 'utf-8');
-            var key = fs.readFileSync('crt/' + name + '-key.pem', 'utf-8');
-            var ca = fs.readFileSync(path.join(__dirname, 'ca-cert.pem'), 'utf-8');
-            res.contentType('json');
-            res.send(JSON.stringify({ cert: cert, key: key, ca: ca }));
-            delete ud.token;
-            ud.registered = Date.now();
-            users.save();
+        if (!found) {
+            var name = user.name;
+            var ud = user.data;
+            if (ud.token === token) {
+                found = true;
+                var cert = fs.readFileSync('crt/' + name + '-cert.pem', 'utf-8');
+                var key = fs.readFileSync('crt/' + name + '-key.pem', 'utf-8');
+                var ca = fs.readFileSync(path.join(__dirname, 'ca-cert.pem'), 'utf-8');
+                delete ud.token;
+                ud.registered = Date.now();
+                users.save();
+
+                res.json({ cert: cert, key: key, ca: ca });
+            }
         }
     });
-    res.end();
+
+    if (!found) {
+        res.send(404);
+        res.end();
+    }
 });
 
 app.post('/newtoken', function(req, res){
@@ -129,10 +138,11 @@ app.post('/newtoken', function(req, res){
     if (user) {
         user.token = uuid.v4();
         users.save();
-        res.contentType('json');
-        res.send(JSON.stringify({ token: user.token }));
+        res.json({ token: user.token });
+    } else {
+        res.send(403);
+        res.end();
     };
-    res.end();
 });
 
 // Create a new user (or reset certificate and token for an existing one).
@@ -141,17 +151,34 @@ app.post(/\/users\/([a-z0-9_-]+)$/, function(req, res){
     var username = req.params[0];
     log.debug('POST /users/' + username);
     var user = authenticate(req, users);
-    if (users.all().length === 0 // There are no users yet
-        || user && user.admin) { // The authenticated user is an admin.
+    if (users.all().length === 0 || user && user.admin) {
         var newUserAdmin = users.all().length == 0;
         createUser(username, newUserAdmin, function (u) {
-            res.contentType('json');
             res.send(JSON.stringify(u));
-            res.end();
         });
     } else {
+        res.send(403);
         res.end();
     }
+});
+
+// Delete a user
+
+app.del(/\/users\/([a-z0-9_-]+)$/, function(req, res){
+    var username = req.params[0];
+    log.debug('DELETE /users/' + username);
+    var user = authenticate(req, users);
+    if (user && user.admin) {
+        if (users.get(username)) {
+            users.del(username);
+            users.save();
+        } else {
+            res.send(404);
+        }
+    } else {
+        res.send(403);
+    }
+    res.end();
 });
 
 // List the files in storage.
@@ -172,12 +199,11 @@ app.get('/store', function (req, res) {
     if (user) {
         fs.readdir(path.join(commander.store, 'data'), function (err, files) {
             async.map(files, stat, function (err, files) {
-                res.contentType('json');
-                res.send(JSON.stringify(files));
-                res.end();
+                res.json(files);
             });
         });
     } else {
+        res.send(403);
         res.end();
     }
 });
@@ -196,12 +222,11 @@ app.put(/\/store\/([0-9a-z_.-]+)$/, function (req, res) {
         });
         req.on('end', function () {
             fs.writeFile(path.join('data', file), buffer, function () {
-                res.contentType('json');
-                res.send(JSON.stringify({ status: 'ok', length: buffer.length }));
-                res.end();
+                res.json({ status: 'ok', length: buffer.length });
             });
         });
     } else {
+        res.send(403);
         res.end();
     }
 });
@@ -215,6 +240,7 @@ app.get(/\/store\/([0-9a-z_.-]+)$/, function (req, res) {
     if (user) {
         res.sendfile(path.join('data', file));
     } else {
+        res.send(403);
         res.end();
     }
 });
