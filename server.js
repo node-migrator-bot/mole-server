@@ -84,8 +84,8 @@ function createUserCert(name, callback) {
         var s = data.toString('utf-8').trim();
         if (s.match(/^[0-9A-F:]+$/)) {
             fingerprint = s;
-        } else {
-            log.warning(data);
+        } else if (s.length > 0) {
+            log.warning(s);
         }
     }
 
@@ -117,7 +117,7 @@ function authenticate(req) {
         return null;
     }
 
-    log.info('Certificate authentication for ' + username + ' succeeded');
+    log.debug('Certificate authentication for ' + username + ' succeeded');
     return user;
 }
 
