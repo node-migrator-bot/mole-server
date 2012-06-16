@@ -24,6 +24,7 @@ commander
 
 mkdirp.sync(path.join(commander.store, 'crt'));
 mkdirp.sync(path.join(commander.store, 'data'));
+mkdirp.sync(path.join(commander.store, 'extra'));
 mkdirp.sync(path.join(commander.store, 'server'));
 process.chdir(commander.store);
 
@@ -72,6 +73,7 @@ function startApp() {
     app.get('/store', listfiles);
     app.put(/\/store\/([0-9a-z_.-]+)$/, putfile);
     app.get(/\/store\/([0-9a-z_.-]+)$/, getfile);
+    app.get(/\/extra\/([0-9a-z_.-]+)$/, getExtraFile);
     app.listen(commander.port);
     log.info('Server listening on port ' + commander.port);
 }
@@ -267,6 +269,20 @@ function getfile(req, res) {
     var user = authenticate(req);
     if (user) {
         res.sendfile(path.join('data', file));
+    } else {
+        res.send(403);
+        res.end();
+    }
+}
+
+// Get a file from extra (read-only) storage.
+
+function getExtraFile(req, res) {
+    var file = req.params[0];
+    log.debug('GET /extra/' + file);
+    var user = authenticate(req);
+    if (user) {
+        res.sendfile(path.join('extra', file));
     } else {
         res.send(403);
         res.end();
