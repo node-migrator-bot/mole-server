@@ -46,7 +46,7 @@ var serverCertFile = path.join(commander.store, 'crt', 'server-cert.pem');
 var serverKeyFile = path.join(commander.store, 'crt', 'server-key.pem');
 
 log.debug('Checking for existing certificates');
-if (!path.existsSync(caCertFile)) {
+if (!fs.existsSync(caCertFile)) {
     spawn(path.join(__dirname, 'gen-ca.exp')).on('exit', function (code) {
         spawn(path.join(__dirname, 'gen-user.exp'), [ 'server' ]).on('exit', function (code) {
             log.info('Created CA & server certificates');
